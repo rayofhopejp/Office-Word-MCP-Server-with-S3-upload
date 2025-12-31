@@ -275,6 +275,7 @@ def register_tools():
     @mcp.tool(
         annotations=ToolAnnotations(
             title="Search and Replace",
+            destructiveHint=True,
         ),
     )
     def search_and_replace(filename: str, find_text: str, replace_text: str):
