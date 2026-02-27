@@ -12,6 +12,7 @@ from docx.shared import Inches, Pt, RGBColor
 from word_document_server.utils.file_utils import check_file_writeable, ensure_docx_extension
 from word_document_server.utils.document_utils import find_and_replace_text, insert_header_near_text, insert_numbered_list_near_text, insert_line_or_paragraph_near_text, replace_paragraph_block_below_header, replace_block_between_manual_anchors
 from word_document_server.core.styles import ensure_heading_style, ensure_table_style
+from word_document_server.utils.s3_uploader import upload_to_s3
 
 
 async def add_heading(filename: str, text: str, level: int = 1,
@@ -105,7 +106,13 @@ async def add_heading(filename: str, text: str, level: int = 1,
             pPr.append(pBdr)
 
         doc.save(filename)
-        return f"Heading '{text}' (level {level}) added to {filename}"
+        result = f"Heading '{text}' (level {level}) added to {filename}"
+        
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        
+        return result
     except Exception as e:
         return f"Failed to add heading: {str(e)}"
 
@@ -167,7 +174,13 @@ async def add_paragraph(filename: str, text: str, style: Optional[str] = None,
                     run.font.color.rgb = RGBColor.from_string(color_hex)
 
         doc.save(filename)
-        return f"Paragraph added to {filename}"
+        result = f"Paragraph added to {filename}"
+        
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        
+        return result
     except Exception as e:
         return f"Failed to add paragraph: {str(e)}"
 
@@ -214,7 +227,13 @@ async def add_table(filename: str, rows: int, cols: int, data: Optional[List[Lis
                     table.cell(i, j).text = str(cell_text)
         
         doc.save(filename)
-        return f"Table ({rows}x{cols}) added to {filename}"
+        result = f"Table ({rows}x{cols}) added to {filename}"
+        
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        
+        return result
     except Exception as e:
         return f"Failed to add table: {str(e)}"
 
@@ -265,7 +284,13 @@ async def add_picture(filename: str, image_path: str, width: Optional[float] = N
             else:
                 doc.add_picture(abs_image_path)
             doc.save(abs_filename)
-            return f"Picture {image_path} added to {filename}"
+            result = f"Picture {image_path} added to {filename}"
+            
+            s3_result = upload_to_s3(abs_filename)
+            if s3_result['success']:
+                result += f"\nS3 URL: {s3_result['url']}"
+            
+            return result
         except Exception as inner_error:
             # More detailed error for the specific operation
             error_type = type(inner_error).__name__
@@ -298,7 +323,13 @@ async def add_page_break(filename: str) -> str:
         doc = Document(filename)
         doc.add_page_break()
         doc.save(filename)
-        return f"Page break added to {filename}."
+        result = f"Page break added to {filename}."
+        
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        
+        return result
     except Exception as e:
         return f"Failed to add page break: {str(e)}"
 
@@ -423,7 +454,13 @@ async def delete_paragraph(filename: str, paragraph_index: int) -> str:
         p.getparent().remove(p)
         
         doc.save(filename)
-        return f"Paragraph at index {paragraph_index} deleted successfully."
+        result = f"Paragraph at index {paragraph_index} deleted successfully."
+        
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        
+        return result
     except Exception as e:
         return f"Failed to delete paragraph: {str(e)}"
 
@@ -454,7 +491,13 @@ async def search_and_replace(filename: str, find_text: str, replace_text: str) -
         
         if count > 0:
             doc.save(filename)
-            return f"Replaced {count} occurrence(s) of '{find_text}' with '{replace_text}'."
+            result = f"Replaced {count} occurrence(s) of '{find_text}' with '{replace_text}'."
+            
+            s3_result = upload_to_s3(filename)
+            if s3_result['success']:
+                result += f"\nS3 URL: {s3_result['url']}"
+            
+            return result
         else:
             return f"No occurrences of '{find_text}' found."
     except Exception as e:
@@ -462,20 +505,45 @@ async def search_and_replace(filename: str, find_text: str, replace_text: str) -
 
 async def insert_header_near_text_tool(filename: str, target_text: str = None, header_title: str = "", position: str = 'after', header_style: str = 'Heading 1', target_paragraph_index: int = None) -> str:
     """Insert a header (with specified style) before or after the target paragraph. Specify by text or paragraph index."""
-    return insert_header_near_text(filename, target_text, header_title, position, header_style, target_paragraph_index)
+    result = insert_header_near_text(filename, target_text, header_title, position, header_style, target_paragraph_index)
+    if 'successfully' in result.lower():
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+    return result
 
 async def insert_numbered_list_near_text_tool(filename: str, target_text: str = None, list_items: list = None, position: str = 'after', target_paragraph_index: int = None, bullet_type: str = 'bullet') -> str:
     """Insert a bulleted or numbered list before or after the target paragraph. Specify by text or paragraph index."""
-    return insert_numbered_list_near_text(filename, target_text, list_items, position, target_paragraph_index, bullet_type)
+    result = insert_numbered_list_near_text(filename, target_text, list_items, position, target_paragraph_index, bullet_type)
+    if 'successfully' in result.lower():
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+    return result
 
 async def insert_line_or_paragraph_near_text_tool(filename: str, target_text: str = None, line_text: str = "", position: str = 'after', line_style: str = None, target_paragraph_index: int = None) -> str:
     """Insert a new line or paragraph (with specified or matched style) before or after the target paragraph. Specify by text or paragraph index."""
-    return insert_line_or_paragraph_near_text(filename, target_text, line_text, position, line_style, target_paragraph_index)
+    result = insert_line_or_paragraph_near_text(filename, target_text, line_text, position, line_style, target_paragraph_index)
+    if 'successfully' in result.lower():
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+    return result
 
 async def replace_paragraph_block_below_header_tool(filename: str, header_text: str, new_paragraphs: list, detect_block_end_fn=None) -> str:
     """Reemplaza el bloque de párrafos debajo de un encabezado, evitando modificar TOC."""
-    return replace_paragraph_block_below_header(filename, header_text, new_paragraphs, detect_block_end_fn)
+    result = replace_paragraph_block_below_header(filename, header_text, new_paragraphs, detect_block_end_fn)
+    if 'successfully' in result.lower() or 'replaced' in result.lower():
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+    return result
 
 async def replace_block_between_manual_anchors_tool(filename: str, start_anchor_text: str, new_paragraphs: list, end_anchor_text: str = None, match_fn=None, new_paragraph_style: str = None) -> str:
     """Replace all content between start_anchor_text and end_anchor_text (or next logical header if not provided)."""
-    return replace_block_between_manual_anchors(filename, start_anchor_text, new_paragraphs, end_anchor_text, match_fn, new_paragraph_style)
+    result = replace_block_between_manual_anchors(filename, start_anchor_text, new_paragraphs, end_anchor_text, match_fn, new_paragraph_style)
+    if 'successfully' in result.lower() or 'replaced' in result.lower():
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+    return result
