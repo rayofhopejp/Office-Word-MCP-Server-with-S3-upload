@@ -20,6 +20,7 @@ from word_document_server.core.tables import (
     set_column_widths, set_table_width as set_table_width_func, auto_fit_table,
     format_cell_text_by_position, set_cell_padding_by_position
 )
+from word_document_server.utils.s3_uploader import upload_to_s3
 
 
 async def format_text(filename: str, paragraph_index: int, start_pos: int, end_pos: int, 
@@ -127,7 +128,13 @@ async def format_text(filename: str, paragraph_index: int, start_pos: int, end_p
             run_after = paragraph.add_run(text[end_pos:])
         
         doc.save(filename)
-        return f"Text '{target_text}' formatted successfully in paragraph {paragraph_index}."
+        result = f"Text '{target_text}' formatted successfully in paragraph {paragraph_index}."
+        
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        
+        return result
     except Exception as e:
         return f"Failed to format text: {str(e)}"
 
@@ -226,7 +233,13 @@ async def format_table(filename: str, table_index: int,
         
         if success:
             doc.save(filename)
-            return f"Table at index {table_index} formatted successfully."
+            result = f"Table at index {table_index} formatted successfully."
+            
+            s3_result = upload_to_s3(filename)
+            if s3_result['success']:
+                result += f"\nS3 URL: {s3_result['url']}"
+            
+            return result
         else:
             return f"Failed to format table at index {table_index}."
     except Exception as e:
@@ -1015,7 +1028,13 @@ async def format_table_cell_text(filename: str, table_index: int, row_index: int
                 format_desc.append(f"font={font_name}")
             
             format_str = ", ".join(format_desc) if format_desc else "no changes"
-            return f"Cell text formatted successfully in table {table_index}, cell ({row_index},{col_index}): {format_str}."
+            result = f"Cell text formatted successfully in table {table_index}, cell ({row_index},{col_index}): {format_str}."
+            
+            s3_result = upload_to_s3(filename)
+            if s3_result['success']:
+                result += f"\nS3 URL: {s3_result['url']}"
+            
+            return result
         else:
             return f"Failed to format cell text. Check that indices are valid."
     except Exception as e:
