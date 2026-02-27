@@ -9,6 +9,7 @@ from docx import Document
 from word_document_server.utils.file_utils import check_file_writeable, ensure_docx_extension, create_document_copy
 from word_document_server.utils.document_utils import get_document_properties, extract_document_text, get_document_structure, get_document_xml, insert_header_near_text, insert_line_or_paragraph_near_text
 from word_document_server.core.styles import ensure_heading_style, ensure_table_style
+from word_document_server.utils.s3_uploader import upload_to_s3
 
 
 async def create_document(filename: str, title: Optional[str] = None, author: Optional[str] = None) -> str:
@@ -42,7 +43,14 @@ async def create_document(filename: str, title: Optional[str] = None, author: Op
         # Save the document
         doc.save(filename)
         
-        return f"Document {filename} created successfully"
+        result = f"Document {filename} created successfully"
+        
+        # Upload to S3
+        s3_result = upload_to_s3(filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        
+        return result
     except Exception as e:
         return f"Failed to create document: {str(e)}"
 
@@ -128,7 +136,11 @@ async def copy_document(source_filename: str, destination_filename: Optional[str
     
     success, message, new_path = create_document_copy(source_filename, destination_filename)
     if success:
-        return message
+        result = message
+        s3_result = upload_to_s3(new_path)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        return result
     else:
         return f"Failed to copy document: {message}"
 
@@ -204,7 +216,13 @@ async def merge_documents(target_filename: str, source_filenames: List[str], add
         
         # Save the merged document
         target_doc.save(target_filename)
-        return f"Successfully merged {len(source_filenames)} documents into {target_filename}"
+        result = f"Successfully merged {len(source_filenames)} documents into {target_filename}"
+        
+        s3_result = upload_to_s3(target_filename)
+        if s3_result['success']:
+            result += f"\nS3 URL: {s3_result['url']}"
+        
+        return result
     except Exception as e:
         return f"Failed to merge documents: {str(e)}"
 
